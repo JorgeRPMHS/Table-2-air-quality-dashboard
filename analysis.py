@@ -197,6 +197,47 @@ def filter_by_date_range(df, start_date=None, end_date=None):
     return df_filtered
 
 
+# --- Sidebar filter support: pollutant catalogue and per-pollutant metrics ---
+# Pollutants the user can pick in the sidebar, with their units and the
+# matching metal-oxide sensor column (used for the "pollutant vs sensor" chart).
+# C6H6 has no dedicated sensor; it is estimated from the NMHC sensor (PT08.S2).
+POLLUTANTS = {
+    'CO(GT)':   {'label': 'Carbon Monoxide (CO)',          'unit': 'mg/m³', 'sensor': 'PT08.S1(CO)'},
+    'NMHC(GT)': {'label': 'Non-Methane Hydrocarbons (NMHC)', 'unit': 'µg/m³', 'sensor': 'PT08.S2(NMHC)'},
+    'C6H6(GT)': {'label': 'Benzene (C6H6)',                'unit': 'µg/m³', 'sensor': 'PT08.S2(NMHC)'},
+    'NOx(GT)':  {'label': 'Nitrogen Oxides (NOx)',         'unit': 'ppb',   'sensor': 'PT08.S3(NOx)'},
+    'NO2(GT)':  {'label': 'Nitrogen Dioxide (NO2)',        'unit': 'µg/m³', 'sensor': 'PT08.S4(NO2)'},
+}
+
+
+def calculate_pollutant_metrics(df, pollutant):
+    """
+    Calculate summary statistics for a single pollutant column.
+
+    Args:
+        df (pd.DataFrame): Cleaned (and possibly filtered) dataset
+        pollutant (str): Name of the pollutant column
+
+    Returns:
+        dict: mean/median/max/min/std, or {} if there is no valid data
+    """
+    if df is None or pollutant not in df.columns:
+        return {}
+
+    data = df[pollutant].dropna()
+    if data.empty:
+        return {}
+
+    return {
+        'mean': data.mean(),
+        'median': data.median(),
+        'max': data.max(),
+        'min': data.min(),
+        'std': data.std()
+    }
+# --- End sidebar filter support ---
+
+
 def get_daily_averages(df):
     """
     Calculate daily averages for all numeric columns.
