@@ -170,6 +170,53 @@ def main():
 
     # Data preview table
     st.markdown('<h2 class="section-header">Data Preview</h2>', unsafe_allow_html=True)
+    st.sidebar.header("Table controls")
+
+    # Filter and sort options
+    sort_column = st.sidebar.selectbox("Sort by", df.columns.tolist())
+    sort_order = st.sidebar.selectbox(
+        "Sort order", ["Ascending", "Descending"]
+    )
+
+    height = st.sidebar.slider("Table height", 200, 1000, 400, 50)
+
+    table_data = df.copy()
+
+    # Filter by pollutant concentration range
+    pollutant = st.sidebar.selectbox(
+        "Filter by pollutant",
+        ["CO(GT)", "C6H6(GT)", "NOx(GT)", "NO2(GT)"]
+    )
+
+    # Filter the table based on pollutant concentration range
+    values = pd.to_numeric(table_data[pollutant], errors="coerce")
+    valid_values = values.dropna()
+
+    if not valid_values.empty:
+        minimum = float(valid_values.min())
+        maximum = float(valid_values.max())
+
+        if minimum < maximum:
+            lower, upper = st.sidebar.slider(
+                f"{pollutant} concentration range",
+                min_value=minimum,
+                max_value=maximum,
+                value=(minimum, maximum)
+            )
+
+            table_data = table_data.loc[values.between(lower, upper)]
+
+    # Sort the table based on user selection
+    table_data = table_data.sort_values(
+        sort_column,
+        ascending=(sort_order == "Ascending"),
+        na_position="last"
+    )
+
+    # Display the filtered and sorted table
+    st.caption(f"Showing {len(table_data):,} of {len(df):,} readings")
+    st.dataframe(table_data, use_container_width=True, height=height)
+    
     # Show the filtered rows, focused on the selected pollutant, its sensor and weather columns
     preview_cols = list(dict.fromkeys(['Date', 'Time', selected_pollutant, sensor, 'T', 'RH', 'AH']))
     st.dataframe(filtered_df[preview_cols].head(10), use_container_width=True)
