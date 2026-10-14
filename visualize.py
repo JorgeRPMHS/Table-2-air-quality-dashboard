@@ -419,6 +419,82 @@ def plot_pollutant_vs_sensor(df, pollutant='NOx(GT)', sensor='PT08.S3(NOx)', uni
 # --- End selected pollutant vs sensor ---
 
 
+# --- "All pollutants" support: one small chart per pollutant in a grid ---
+def plot_pollutants_grid(df, pollutant_info, kind='time', title=None):
+    """
+    Create a grid of small charts, one per pollutant.
+
+    Pollutants are measured on very different scales (CO ~2 mg/m³, NOx ~250 ppb),
+    so each one gets its own axes instead of sharing a single chart.
+
+    Args:
+        df (pd.DataFrame): Cleaned dataset
+        pollutant_info (dict): {column: {'unit': ..., 'sensor': ...}} (POLLUTANTS from analysis.py)
+        kind (str): 'time' (line over time), 'hist' (distribution) or 'sensor' (vs sensor reading)
+        title (str): Overall figure title
+
+    Returns:
+        matplotlib.figure.Figure: The plot figure
+    """
+    if df is None:
+        return None
+
+    pollutants = [p for p in pollutant_info if p in df.columns]
+    if not pollutants:
+        return None
+
+    n_cols = 2
+    n_rows = -(-len(pollutants) // n_cols)  # ceiling division
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 3.2 * n_rows), squeeze=False)
+    colors = ['#2E8B57', '#FF6B6B', '#4A90E2', '#FFD93D', '#6A5ACD']
+
+    for i, pollutant in enumerate(pollutants):
+        ax = axes[i // n_cols][i % n_cols]
+        unit = pollutant_info[pollutant].get('unit', '')
+        sensor = pollutant_info[pollutant].get('sensor')
+        color = colors[i % len(colors)]
+
+        # Pick the columns this kind of chart needs and drop missing values
+        if kind == 'time':
+            data = df[['DateTime', pollutant]].dropna()
+        elif kind == 'sensor' and sensor in df.columns:
+            data = df[[pollutant, sensor]].dropna()
+        else:
+            data = df[[pollutant]].dropna()
+
+        if data.empty:
+            ax.text(0.5, 0.5, 'No data in selected range', ha='center', va='center',
+                    transform=ax.transAxes, color='gray')
+        elif kind == 'time':
+            ax.plot(data['DateTime'], data[pollutant], linewidth=0.8, alpha=0.8, color=color)
+            ax.set_ylabel(unit, fontsize=9)
+            ax.tick_params(axis='x', labelrotation=30, labelsize=8)
+        elif kind == 'sensor' and sensor in df.columns:
+            ax.scatter(data[pollutant], data[sensor], alpha=0.5, s=8, color=color)
+            ax.set_xlabel(f'{pollutant} ({unit})', fontsize=9)
+            ax.set_ylabel(sensor, fontsize=9)
+        else:
+            ax.hist(data[pollutant], bins=40, alpha=0.7, color=color, edgecolor='black')
+            ax.axvline(data[pollutant].mean(), color='red', linestyle='--',
+                       label=f'Mean: {data[pollutant].mean():.2f}')
+            ax.set_xlabel(unit, fontsize=9)
+            ax.legend(fontsize=8)
+
+        ax.set_title(pollutant, fontsize=11, fontweight='bold')
+        ax.grid(True, alpha=0.3)
+
+    # Hide any unused grid cells
+    for j in range(len(pollutants), n_rows * n_cols):
+        axes[j // n_cols][j % n_cols].axis('off')
+
+    if title:
+        fig.suptitle(title, fontsize=14, fontweight='bold')
+    plt.tight_layout()
+
+    return fig
+# --- End "All pollutants" grid ---
+
+
 def create_summary_metrics_display(metrics):
     """
     Create a formatted display of key metrics for Streamlit.
