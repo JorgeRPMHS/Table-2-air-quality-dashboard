@@ -257,42 +257,26 @@ def main():
     # ------------------------------------------------------------------
 
     # Visualizations
+        # Visualizations, organized into tabs so users can jump straight to the
+    # chart they need instead of scrolling through every section
     st.markdown('<h2 class="section-header">Data Visualizations</h2>', unsafe_allow_html=True)
 
-    if show_all:
-        # "All pollutants": full-width grids with one small chart per pollutant,
-        # since the pollutants are measured on very different scales
-        st.subheader("Pollutant Concentrations Over Time")
-        st.pyplot(plot_pollutants_grid(filtered_df, POLLUTANTS, kind='time'))
+    tab_time, tab_temp, tab_corr, tab_dist, tab_sensor = st.tabs([
+        "📈 Over Time",
+        "🌡️ Temp vs Humidity",
+        "🔗 Correlation",
+        "📊 Distributions",
+        "🔬 Pollutants vs Sensors",
+    ])
 
-        col1, col2 = st.columns(2)
-        with col1:
-            # Temperature vs humidity, coloured by temperature (no single pollutant selected)
-            st.subheader("Temperature vs Absolute Humidity")
-            temp_humidity_plot = plot_temperature_vs_humidity(filtered_df)
-            if temp_humidity_plot:
-                st.pyplot(temp_humidity_plot)
-            else:
-                st.warning("No temperature/humidity data available for plotting")
-        with col2:
-            # Correlation heatmap on the filtered data
-            st.subheader("Correlation Heatmap")
-            corr_plot = plot_correlation_heatmap(filtered_df)
-            if corr_plot:
-                st.pyplot(corr_plot)
-
-        st.subheader("Pollutant Distributions")
-        st.pyplot(plot_pollutants_grid(filtered_df, POLLUTANTS, kind='hist'))
-
-        st.subheader("Pollutants vs Sensor Values")
-        st.pyplot(plot_pollutants_grid(filtered_df, POLLUTANTS, kind='sensor'))
-
-    else:
-        # Base charts as required
-        col1, col2 = st.columns(2)
-
-        with col1:
-            # Time series of the selected pollutant over the selected dates
+    with tab_time:
+        st.caption("How pollutant concentrations change across the selected date range. "
+                   "Peaks usually match rush hours.")
+        if show_all:
+            # One small chart per pollutant, since they use very different scales
+            st.subheader("Pollutant Concentrations Over Time")
+            st.pyplot(plot_pollutants_grid(filtered_df, POLLUTANTS, kind='time'))
+        else:
             st.subheader(f"{selected_pollutant} Concentration Over Time")
             pollutant_time_plot = plot_pollutant_over_time(filtered_df, selected_pollutant, unit)
             if pollutant_time_plot:
@@ -300,24 +284,42 @@ def main():
             else:
                 st.warning(f"No {selected_pollutant} data available for plotting")
 
-        with col2:
-            # Temperature vs humidity, points coloured by the selected pollutant
-            st.subheader("Temperature vs Absolute Humidity")
+    with tab_temp:
+        st.caption("Relationship between temperature and absolute humidity. "
+                   "With a pollutant selected, points are coloured by its concentration.")
+        st.subheader("Temperature vs Absolute Humidity")
+        if show_all:
+            temp_humidity_plot = plot_temperature_vs_humidity(filtered_df)
+        else:
             temp_humidity_plot = plot_temperature_vs_humidity(
                 filtered_df,
                 title=f"Temperature vs Absolute Humidity (coloured by {selected_pollutant})",
                 color_by=selected_pollutant,
             )
-            if temp_humidity_plot:
-                st.pyplot(temp_humidity_plot)
-            else:
-                st.warning("No temperature/humidity data available for plotting")
+        if temp_humidity_plot:
+            st.pyplot(temp_humidity_plot)
+        else:
+            st.warning("No temperature/humidity data available for plotting")
 
-        # Additional visualizations
-        col3, col4 = st.columns(2)
+    with tab_corr:
+        st.caption("Correlation between all variables. Values close to 1 or -1 indicate "
+                   "a strong relationship; values near 0 indicate little or none.")
+        st.subheader("Correlation Heatmap")
+        if show_all:
+            corr_plot = plot_correlation_heatmap(filtered_df)
+        else:
+            # Outline the selected pollutant in the heatmap
+            corr_plot = plot_correlation_heatmap(filtered_df, highlight=selected_pollutant)
+        if corr_plot:
+            st.pyplot(corr_plot)
 
-        with col3:
-            # Distribution of the selected pollutant
+    with tab_dist:
+        st.caption("How often each concentration level occurs. "
+                   "The dashed line marks the mean.")
+        if show_all:
+            st.subheader("Pollutant Distributions")
+            st.pyplot(plot_pollutants_grid(filtered_df, POLLUTANTS, kind='hist'))
+        else:
             st.subheader(f"{selected_pollutant} Distribution")
             dist_plot = plot_pollutant_distribution(filtered_df, selected_pollutant)
             if dist_plot:
@@ -325,20 +327,19 @@ def main():
             else:
                 st.warning(f"No {selected_pollutant} data available for plotting")
 
-        with col4:
-            # Selected pollutant vs its matching sensor
+    with tab_sensor:
+        st.caption("Reference measurements compared with the low-cost sensor readings. "
+                   "A tight line means the sensor tracks the reference well.")
+        if show_all:
+            st.subheader("Pollutants vs Sensor Values")
+            st.pyplot(plot_pollutants_grid(filtered_df, POLLUTANTS, kind='sensor'))
+        else:
             st.subheader(f"{selected_pollutant} vs Sensor Value")
             sensor_plot = plot_pollutant_vs_sensor(filtered_df, selected_pollutant, sensor, unit)
             if sensor_plot:
                 st.pyplot(sensor_plot)
             else:
                 st.warning(f"No {selected_pollutant} / {sensor} data available for plotting")
-
-        # Correlation heatmap on the filtered data, with the selected pollutant outlined
-        st.subheader("Correlation Heatmap")
-        corr_plot = plot_correlation_heatmap(filtered_df, highlight=selected_pollutant)
-        if corr_plot:
-            st.pyplot(corr_plot)
 
     # Free matplotlib memory - figures are recreated on every filter change
     plt.close('all')
